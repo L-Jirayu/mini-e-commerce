@@ -1,0 +1,32 @@
+services:
+  web:
+    build: .
+    container_name: minishop-web
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - db
+    environment:
+      DB_DRIVER: pgsql
+      DB_HOST: db
+      DB_NAME: minishop
+      DB_USER: postgres
+      DB_PASS: "1234"
+
+  db:
+    image: postgres:18
+    container_name: minishop-db
+    environment:
+      POSTGRES_DB: minishop
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "1234"
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/shop.pgsql:/docker-entrypoint-initdb.d/01_shop.sql:ro
+
+volumes:
+  pgdata:
