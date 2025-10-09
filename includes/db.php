@@ -10,27 +10,31 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 $pdo = null;
 $databaseUrl = getenv('DATABASE_URL');
 
+// ถ้าไม่มี DATABASE_URL (เช่นรัน local) จะ fallback ไปใช้ DB_* env แทน
 if ($databaseUrl) {
-  // แปลง postgres://... → pgsql:host=...;port=...;dbname=...
   $parts = parse_url($databaseUrl);
-  // บางระบบใช้ 'postgresql' แทน 'postgres' — รองรับทั้งคู่
-  if (!isset($parts['scheme']) || ($parts['scheme'] !== 'postgres' && $parts['scheme'] !== 'postgresql')) {
+
+  // รองรับทั้ง postgres:// และ postgresql://
+  if (!isset($parts['scheme']) || !in_array($parts['scheme'], ['postgres', 'postgresql'])) {
     die('Invalid DATABASE_URL scheme.');
   }
+
   $host = $parts['host'] ?? '127.0.0.1';
   $port = $parts['port'] ?? '5432';
   $db   = ltrim($parts['path'] ?? '', '/');
   $user = $parts['user'] ?? null;
   $pass = $parts['pass'] ?? null;
 
-  $dsn = "pgsql:host={$host};port={$port};dbname={$db}";
+  // 🧠 จุดสำคัญ: Supabase ต้องใช้ SSL
+  $dsn = "pgsql:host={$host};port={$port};dbname={$db};sslmode=require";
+
   $pdo = new PDO($dsn, $user, $pass, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
   ]);
 
 } else {
-  // fallback: ค่าจาก DB_* (ใช้ได้ทั้ง local/docker-compose)
+  // fallback สำหรับ local
   $driver = getenv('DB_DRIVER') ?: 'pgsql';
   $host   = getenv('DB_HOST')   ?: '127.0.0.1';
   $name   = getenv('DB_NAME')   ?: 'mini_shop';
