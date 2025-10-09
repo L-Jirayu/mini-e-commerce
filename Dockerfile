@@ -1,11 +1,9 @@
-# Dockerfile (Render-ready)
+# Dockerfile (for PHP plain + PostgreSQL on Render)
 FROM php:8.3-apache
 
-# เปิด mod_rewrite
-RUN a2enmod rewrite
-
-# ติดตั้ง Postgres PDO + psql client (สำหรับ seed DB)
-RUN apt-get update \
+# เปิด mod_rewrite และติดตั้ง Postgres PDO + psql client
+RUN a2enmod rewrite \
+ && apt-get update \
  && apt-get install -y libpq-dev postgresql-client \
  && docker-php-ext-install pdo pdo_pgsql
 
@@ -13,30 +11,27 @@ RUN apt-get update \
 RUN echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
  && a2enconf servername
 
-# คัดลอกโค้ดเข้า container
+# โค้ดเว็บอยู่ที่ /var/www/html (DocumentRoot ของ apache ดีฟอลต์ก็ตรงรูทนี้)
 WORKDIR /var/www/html
 COPY . /var/www/html
 
-# ตั้ง permission (optional)
+# สิทธิ์ไฟล์ (optional)
 RUN chown -R www-data:www-data /var/www/html
 
-# ให้ Apache ฟังตาม $PORT (Render จะตั้งให้)
+# ให้ .htaccess ใช้ได้ (AllowOverride All) และเปิดสิทธิ์โฟลเดอร์เว็บ
+RUN printf "\n<Directory /var/www/html>\n  AllowOverride All\n  Require all granted\n</Directory>\n" >> /etc/apache2/apache2.conf
+
+# Render จะตั้ง $PORT ให้ (ดีฟอลต์ 10000)
 ENV PORT=10000
-
-# สคริปต์สตาร์ต: เขียน vhost ด้วย $PORT + (ทางเลือก) import SQL ครั้งแรก
-RUN printf '#!/usr/bin/env bash\nset -e\np=${PORT:-10000}\n\
-echo \"Listen ${p}\n<VirtualHost *:${p}>\n\
-DocumentRoot /var/www/html/public\n\
-<Directory /var/www/html/public>\nAllowOverride All\nRequire all granted\n</Directory>\n\
-ErrorLog /proc/self/fd/2\nCustomLog /proc/self/fd/1 combined\n</VirtualHost>\" \
-> /etc/apache2/sites-available/000-default.conf\n\
-# ถ้ามีไฟล์ seed และ DATABASE_URL ให้ลอง import (ไม่เป็นไรถ้าซ้ำ)\n\
-if [ -f /var/www/html/database/shop.pgsql ] && [ -n \"$DATABASE_URL\" ]; then\n\
-  echo \"[initdb] importing database/shop.pgsql ...\" || true\n\
-  psql \"$DATABASE_URL\" -f /var/www/html/database/shop.pgsql || true\n\
-fi\n\
-exec apache2-foreground\n' > /usr/local/bin/render-start.sh \
- && chmod +x /usr/local/bin/render-start.sh
-
 EXPOSE 10000
-CMD ["bash", "/usr/local/bin/render-start.sh"]
+
+# ปรับ Apache ให้ฟังพอร์ต $PORT ตอนรัน + (ออปชัน) seed DB รถวเดียว
+CMD ["bash", "-lc", "\
+p=${PORT:-10000}; \
+sed -ri 's/Listen [0-9]+/Listen '\"$p\"'/' /etc/apache2/ports.conf; \
+sed -ri 's#<VirtualHost \\*:[0-9]+>#<VirtualHost *:'\"$p\"'>#' /etc/apache2/sites-available/000-default.conf; \
+if [ -f /var/www/html/database/shop.pgsql ] && [ -n \"${DATABASE_URL:-}\" ]; then \
+  echo '[initdb] importing database/shop.pgsql ...'; \
+  psql \"${DATABASE_URL}\" -f /var/www/html/database/shop.pgsql || true; \
+fi; \
+exec apache2-foreground"]
