@@ -1,0 +1,20 @@
+# render.yaml
+services:
+  - type: web
+    name: minishop-web
+    runtime: docker
+    region: singapore
+    plan: starter              # เลือกตามงบ (free/starter/…)
+    healthCheckPath: /         # หน้าเช็กสุขภาพ (เปลี่ยนได้)
+    envVars:
+      # ผูก DATABASE_URL ของเว็บให้ชี้ไป DB ภายใน (internal)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: minishop-db
+          property: connectionString
+
+databases:
+  - name: minishop-db
+    region: singapore
+    plan: starter
+    postgresMajorVersion: "17"
