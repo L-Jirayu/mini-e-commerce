@@ -11,8 +11,3 @@ services:
           name: minishop-db
           property: connectionString   # internal URL (เร็ว/ปลอดภัย)
 
-databases:
-  - name: minishop-db
-    plan: free            # Postgres ฟรี (1GB, หมดอายุ 30 วัน)
-    region: singapore
-    postgresMajorVersion: "17"
