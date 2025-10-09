@@ -5,7 +5,7 @@ FROM php:8.3-apache
 RUN a2enmod rewrite \
  && apt-get update \
  && apt-get install -y libpq-dev postgresql-client \
- && docker-php-ext-install pdo pdo_pgsql
+ && docker-php-ext-install pdo_pgsql
 
 # ปิด warning ServerName (optional)
 RUN echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf \
