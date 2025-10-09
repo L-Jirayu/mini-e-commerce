@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: free            # ใช้ instance ฟรี
     region: singapore
-    healthCheckPath: /health
+    healthCheckPath: /health.php
     envVars:
       - key: DATABASE_URL
         fromDatabase:
